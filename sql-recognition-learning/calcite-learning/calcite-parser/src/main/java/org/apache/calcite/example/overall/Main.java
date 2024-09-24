@@ -82,7 +82,7 @@ public class Main {
         // 创建优化器
         Optimizer optimizer = Optimizer.create(schema);
         // 1. SQL parse: SQL string --> SqlNode
-        SqlNode sqlNode = optimizer.parse(sql1);
+        SqlNode sqlNode = optimizer.parse(sql);
         CalciteUtil.print("Parse result:", sqlNode.toString());
         // 2. SQL validate: SqlNode --> SqlNode
         SqlNode validateSqlNode = optimizer.validate(sqlNode);
