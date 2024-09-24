@@ -3,7 +3,7 @@ package org.apache.calcite.example.parser;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
-import org.apache.calcite.sql.parser.impl.CustomSqlParserImpl;
+import org.apache.calcite.sql.parser.impl.SqlParserImpl;
 
 public class CalciteSQLParser {
 
@@ -14,10 +14,11 @@ public class CalciteSQLParser {
     String expr = "1 + 1";
 
     SqlParser.Config config = SqlParser.config()
-            .withParserFactory(CustomSqlParserImpl.FACTORY);
+            .withParserFactory(SqlParserImpl.FACTORY);
 
-    SqlParser parser = SqlParser.create(expr, config);
-    SqlNode sqlNode = parser.parseExpression();
+    SqlParser parser = SqlParser.create(sql, config);
+//    SqlNode sqlNode = parser.parseExpression();
+    SqlNode sqlNode = parser.parseStmt();
     System.out.println(sqlNode);
   }
 }

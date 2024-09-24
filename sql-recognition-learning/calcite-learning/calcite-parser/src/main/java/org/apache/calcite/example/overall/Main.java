@@ -16,41 +16,58 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.RuleSets;
 
+import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Arguments: <br>
  * args[0]: csv file path for user.csv <br>
  * args[1]: csv file path for order.csv <br>
+
+ * 这段代码的主要作用和目标是：
+ * 从资源文件夹中读取用户和订单的 CSV 文件路径，并创建相应的表。
+ * 使用 Calcite 库定义 SQL 查询，并通过解析、验证、转换和优化生成查询计划。
+ * 执行生成的查询计划并输出查询结果。
  */
 public class Main {
 
     public static void main(String[] args) throws Exception {
-        String userPath = args[0];
-        String orderPath = args[1];
+        // 获取 resources 文件夹中的 user.csv 文件路径并转换为 Path 对象
+        Path userPath = Paths.get(Objects.requireNonNull(Main.class.getResource("/user.csv")).toURI());
+        // 获取 resources 文件夹中的 order.csv 文件路径并转换为 Path 对象
+        Path orderPath = Paths.get(Objects.requireNonNull(Main.class.getResource("/order.csv")).toURI());
+
+        // 创建表示 user 表的 SimpleTable 对象
         SimpleTable userTable = SimpleTable.newBuilder("users")
-                .addField("id", SqlTypeName.VARCHAR)
-                .addField("name", SqlTypeName.VARCHAR)
-                .addField("age", SqlTypeName.INTEGER)
-                .withFilePath(userPath)
-                .withRowCount(10)
+                .addField("id", SqlTypeName.VARCHAR)  // 添加 id 字段，类型为 VARCHAR
+                .addField("name", SqlTypeName.VARCHAR)  // 添加 name 字段，类型为 VARCHAR
+                .addField("age", SqlTypeName.INTEGER)  // 添加 age 字段，类型为 INTEGER
+                .withFilePath(userPath.toString())  // 设置表对应的文件路径
+                .withRowCount(10)  // 设置表的行数
                 .build();
+        // 创建表示 order 表的 SimpleTable 对象
         SimpleTable orderTable = SimpleTable.newBuilder("orders")
-                .addField("id", SqlTypeName.VARCHAR)
-                .addField("user_id", SqlTypeName.VARCHAR)
-                .addField("goods", SqlTypeName.VARCHAR)
-                .addField("price", SqlTypeName.DECIMAL)
-                .withFilePath(orderPath)
-                .withRowCount(10)
+                .addField("id", SqlTypeName.VARCHAR)  // 添加 id 字段，类型为 VARCHAR
+                .addField("user_id", SqlTypeName.VARCHAR)  // 添加 user_id 字段，类型为 VARCHAR
+                .addField("goods", SqlTypeName.VARCHAR)  // 添加 goods 字段，类型为 VARCHAR
+                .addField("price", SqlTypeName.DECIMAL)  // 添加 price 字段，类型为 DECIMAL
+                .withFilePath(orderPath.toString())  // 设置表对应的文件路径
+                .withRowCount(10)  // 设置表的行数
                 .build();
+        // 创建 SimpleSchema 对象并添加 user 和 order 表
         SimpleSchema schema = SimpleSchema.newBuilder("s")
                 .addTable(userTable)
                 .addTable(orderTable)
                 .build();
+        // 创建根 Schema
         CalciteSchema rootSchema = CalciteSchema.createRootSchema(false, false);
         rootSchema.add(schema.getSchemaName(), schema);
 
+        // 定义 SQL 查询语句
         String sql = "SELECT u.id, name, age, sum(price) " +
                 "FROM users AS u join orders AS o ON u.id = o.user_id " +
                 "WHERE age >= 20 AND age <= 30 " +
@@ -62,6 +79,7 @@ public class Main {
         String sql4 = "SELECT u.name, o.price FROM users AS u join orders AS o " +
                 "on u.id = o.user_id WHERE o.price > 90";
 
+        // 创建优化器
         Optimizer optimizer = Optimizer.create(schema);
         // 1. SQL parse: SQL string --> SqlNode
         SqlNode sqlNode = optimizer.parse(sql1);
@@ -86,6 +104,7 @@ public class Main {
                 EnumerableRules.ENUMERABLE_SORT_RULE,
                 EnumerableRules.ENUMERABLE_CALC_RULE,
                 EnumerableRules.ENUMERABLE_AGGREGATE_RULE);
+        // 使用规则集优化查询计划
         RelNode optimizerRelTree = optimizer.optimize(
                 relNode,
                 relNode.getTraitSet().plus(EnumerableConvention.INSTANCE),
@@ -95,10 +114,13 @@ public class Main {
         EnumerableRel enumerable = (EnumerableRel) optimizerRelTree;
         Map<String, Object> internalParameters = new LinkedHashMap<>();
         EnumerableRel.Prefer prefer = EnumerableRel.Prefer.ARRAY;
+        // 将查询计划转换为可绑定的执行代码
         Bindable bindable = EnumerableInterpretable.toBindable(internalParameters,
                 null, enumerable, prefer);
+        // 绑定上下文执行查询
         Enumerable bind = bindable.bind(new SimpleDataContext(rootSchema.plus()));
         Enumerator enumerator = bind.enumerator();
+        // 遍历查询结果并输出
         while (enumerator.moveNext()) {
             Object current = enumerator.current();
             Object[] values = (Object[]) current;
